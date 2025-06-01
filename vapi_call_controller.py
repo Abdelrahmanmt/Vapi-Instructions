@@ -3,6 +3,10 @@ import threading
 import time
 import requests
 
+@app.route('/')
+def home():
+    return "Hello from Flask!"
+
 app = Flask(__name__)
 
 # Your VAPI API details
