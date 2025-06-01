@@ -5,6 +5,10 @@
     import threading
 
     app = Flask(__name__)
+    @app.route('/')
+    def home():
+        return "Hello from Flask!"
+
 
     # Store your secret token (make up any secure random string)
     # Read secret from environment variable
