@@ -86,6 +86,24 @@ def end_call_after_timeout_ar(call_id, control_url):
     except Exception as e:
         print(f"[Timer] Error ending call: {e}")
 
+def end_call_after_timeout_fr(call_id, control_url):
+    """Function to wait and then end the call after timeout (French version)"""
+    print(f"[Timer] Starting 35-second timer for call {call_id}")
+    time.sleep(35)  # Wait 35 seconds
+
+    final_message = {
+        "type": "say",
+        "content": "Merci d'avoir essayé notre agent de démonstration. Votre session est maintenant terminée. Lorsque vous serez prêt, veuillez utiliser la section de réservation sur cette page pour planifier une consultation avec l'un de nos experts. Nous avons hâte de vous aider bientôt. Passez une excellente journée !",
+        "endCallAfterSpoken": True
+    }
+
+    try:
+        print(f"[Timer] Sending final message and ending call {call_id}")
+        response = requests.post(control_url, json=final_message)
+        print(f"[Timer] End call response status: {response.status_code}")
+    except Exception as e:
+        print(f"[Timer] Error ending call: {e}")
+
 @app.route('/server', methods=['POST'])
 def handle_call_events():
     if not verify_signature(request):
@@ -193,6 +211,46 @@ def handle_call_events_ar():
                     print(f"[Webhook] Starting timer thread for call {call_id}")
                     timer_thread = threading.Thread(
                         target=end_call_after_timeout_ar,
+                        args=(call_id, control_url)
+                    )
+                    timer_thread.daemon = True
+                    timer_thread.start()
+                else:
+                    print(f"[Webhook] No control URL found for call {call_id}")
+            else:
+                print(f"[Webhook] Timer already started for call {call_id}")
+    else:
+        print(f"[Webhook] Ignored message type: {message_type}")
+
+    return jsonify({"status": "ok"}), 200
+
+@app.route('/server-fr', methods=['POST'])
+def handle_call_events_fr():
+    if not verify_signature(request):
+        print("[Webhook] Signature verification failed!")
+        return jsonify({"error": "Invalid signature"}), 401
+
+    data = request.json
+
+    message_data = data.get('message', {})
+    call_id = message_data.get('call', {}).get('id')
+    message_type = message_data.get('type')
+
+    print(f"[Webhook] Received message type: {message_type}, call_id: {call_id}")
+
+    if message_type == 'status-update':
+        status = message_data.get('status')
+        print(f"[Webhook] Call status update for {call_id}: {status}")
+
+        if status == 'in-progress' and call_id:
+            if call_id not in call_timers:
+                call_timers[call_id] = time.time()
+                control_url = message_data.get('call', {}).get('monitor', {}).get('controlUrl')
+
+                if control_url:
+                    print(f"[Webhook] Starting timer thread for call {call_id}")
+                    timer_thread = threading.Thread(
+                        target=end_call_after_timeout_fr,
                         args=(call_id, control_url)
                     )
                     timer_thread.daemon = True
